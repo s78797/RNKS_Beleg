@@ -59,7 +59,7 @@ int main()
 			printf("%d Bytes gesendet!\n", rc);
 		}
 
-		rc = recvfrom(s, buf, strlen(buf), 0, (SOCKADDR*)&remoteAddr, &remoteAddrLen);
+		/*rc = recvfrom(s, buf, strlen(buf), 0, (SOCKADDR*)&remoteAddr, &remoteAddrLen);
 		if (rc == SOCKET_ERROR)
 		{
 			printf("Fehler: recvfrom, fehler code: %d\n", WSAGetLastError());
@@ -70,7 +70,7 @@ int main()
 			printf("%d Bytes empfangen!\n", rc);
 			buf[rc] = '\0';
 			printf("Empfangene Daten: %s\n", buf);
-		}
+		}*/
 	}
 	return 0;
 }
