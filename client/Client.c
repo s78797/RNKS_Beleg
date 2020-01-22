@@ -1,61 +1,53 @@
-#include <stdio.h>
+#define _CRT_SECURE_NO_WARNINGS
 #include <WinSock2.h>
+#include <stdio.h>
+
 #include <stdlib.h>
 #include <windows.h>
-
-#include <windef.h>
+#include "Packet.h"
+#include "Text_Processing.h"
+#include "Checksum_Processing.h"
 #include <ws2ipdef.h>
-#include <sys/stat.h>
 #include <fcntl.h>
-
-#include "Header.h"
-#include "Windows.h"
-
-#pragma warning(disable:50000)
-
-int startWinsock(void);
+#include <string.h>
+#include <WS2tcpip.h>
 
 
-void calcChecksum( packet *pack) {
-	
-		byte buffer = (byte)pack;
-		
-		register unsigned int sum = 0;
-		int count = sizeof(pack);
-		while (count > 1)
-		{
-			sum += (unsigned short int) buffer++;
-			count -= 2;
-		}
-		
-		//hinzufügen der übriggebliebenen bytes
-		if (count>0)
-		{
-			sum += *(byte*)buffer;
-		}
-		//32-bit summe wird zu 16 bit umgeformt
-		while (sum >> 16) {
-			sum = (sum & 0xfffff) + (sum >> 16);
 
-		}
-		pack->checkSum = htons(sum);
-	return;
+#pragma warning(disable : 4996)
+#pragma warning(disable:5000)
+
+
+int startWinsock(void) {
+	WSADATA wsa;
+	return WSAStartup(MAKEWORD(2, 2), &wsa);
 }
 
 
 
+int main(int argc, char *argv[]) {
 
-int main()
-{
+	char buf[256];
+	strncpy(buf, getTxtColl("C:\\Users\\Alex\\Desktop\\test.txt"), sizeof(buf));
+	packet p1;
+	memset(&p1, 0, sizeof(packet));
+	p1.checkSum = 0;
+	p1.seqNr = 1;
+	strncpy(p1.txtCol, buf, sizeof(p1.txtCol));
+	printf("%s", p1.txtCol);
+	unsigned short *ptopacket = &p1;
+	p1.checkSum = calcChecksum(ptopacket, sizeof(packet));
+
+
+
 
 	long rc;
-	SOCKET s;
-	char buf[1024];
-	IN6_ADDR myaddr= IN6ADDR_ANY_INIT;
-	SOCKADDR_IN6 addr;
-	SOCKADDR_IN6 remoteAddr;
-	int         remoteAddrLen = sizeof(SOCKADDR_IN6);
+	SOCKET s = INVALID_SOCKET;
 
+	SOCKADDR_IN6 addr;
+
+
+	//init Winsock
 	rc = startWinsock();
 	if (rc != 0)
 	{
@@ -68,7 +60,7 @@ int main()
 	}
 
 	//UDP Socket erstellen
-	s = socket(AF_INET6, SOCK_DGRAM, 0);
+	s = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
 	if (s == INVALID_SOCKET)
 	{
 		printf("Fehler: Der Socket konnte nicht erstellt werden, fehler code: %d\n", WSAGetLastError());
@@ -79,31 +71,28 @@ int main()
 		printf("UDP Socket erstellt!\n");
 	}
 
+	memset(&addr, 0, sizeof(addr));
+
+	inet_pton(AF_INET6, "2003:c2:7727:6800:e9e0:ca4b:d325:19cd", &(addr.sin6_addr));
 	addr.sin6_family = AF_INET6;
-	addr.sin6_port = htons(50000);
-	addr.sin6_addr = myaddr;// PLACEHOLDER
+	addr.sin6_port = htons(5000);
 
+	//int packetsize = sizeof(p1);
 
-
-
-
-	while (1)
+	
+	rc = sendto(s, (packet*)&p1, sizeof(p1), 0, (SOCKADDR*)&addr, sizeof(SOCKADDR_IN6));
+	if (rc == SOCKET_ERROR)
 	{
-		printf("Text eingeben: ");
-		fgets(buf, 1024, stdin);
-		rc = sendto(s,buf, strlen(buf), 0, (SOCKADDR_IN6*)&addr, sizeof(SOCKADDR_IN6));
-		if (rc == SOCKET_ERROR)
-		{
-			
-			printf("Fehler: sendto, fehler code: %d\n", WSAGetLastError());
-			WSACleanup();
-			
-			return 1;
-		}
-		else
-		{
-			printf("%d Bytes gesendet!\n", rc);
-		}
+
+		printf("Fehler: sendto, fehler code: %d\n", WSAGetLastError());
+		WSACleanup();
+
+		return 1;
+	}
+	else
+	{
+		printf("%d Bytes gesendet!\n", rc);
+	}
 
 		/*rc = recvfrom(s, buf, strlen(buf), 0, (SOCKADDR*)&remoteAddr, &remoteAddrLen);
 		if (rc == SOCKET_ERROR)
@@ -117,20 +106,15 @@ int main()
 			buf[rc] = '\0';
 			printf("Empfangene Daten: %s\n", buf);
 		}*/
-	}
-
-	int fd;
-	char buffer[256];
-	//fd = open("a.txt,", O_RDONLY, S_IRUSR);
-	//read(fd, buffer, sizeof(buffer));
+	
+	
+	
 
 
 
+	
 	WSACleanup();
+	s = INVALID_SOCKET;
 	return 0;
 }
 
-int startWinsock(void) {
-	WSADATA wsa;
-	return WSAStartup(MAKEWORD(2, 0), &wsa);
-}
