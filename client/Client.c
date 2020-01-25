@@ -26,24 +26,22 @@ int startWinsock(void) {
 
 
 int main(int argc, char *argv[]) {
-
-	char buf[256];
-	strncpy(buf, getTxtColl("C:\\Users\\Alex\\Desktop\\test.txt"), sizeof(buf));
+	FILE *fp;
+	char buf[512];
+	//strncpy(buf, getTxtColl("C:\\Users\\Alex\\Desktop\\test.txt"), sizeof(buf));
 	packet p1;
 	memset(&p1, 0, sizeof(packet));
 	p1.checkSum = 0;
 	p1.seqNr = 1;
-	strncpy(p1.txtCol, buf, sizeof(p1.txtCol));
-	printf("%s", p1.txtCol);
-	unsigned short *ptopacket = &p1;
-	p1.checkSum = calcChecksum(ptopacket, sizeof(packet));
+	//strncpy(p1.txtCol, buf, sizeof(p1.txtCol));
+	//printf("%s", p1.txtCol);
+
 
 
 
 
 	long rc;
 	SOCKET s = INVALID_SOCKET;
-
 	SOCKADDR_IN6 addr;
 
 
@@ -73,26 +71,49 @@ int main(int argc, char *argv[]) {
 
 	memset(&addr, 0, sizeof(addr));
 
-	inet_pton(AF_INET6, "2003:c2:7727:6800:e9e0:ca4b:d325:19cd", &(addr.sin6_addr));
+	inet_pton(AF_INET6, "fe80::e9e0:ca4b:d325:19cd", &(addr.sin6_addr));
 	addr.sin6_family = AF_INET6;
 	addr.sin6_port = htons(5000);
 
 	//int packetsize = sizeof(p1);
-
+	fp = fopen(argv[1], "r");
+	if (fp == NULL) {
+		printf("Fehler beim lesen der Datei");
+		return 2;
+	}
 	
-	rc = sendto(s, (packet*)&p1, sizeof(p1), 0, (SOCKADDR*)&addr, sizeof(SOCKADDR_IN6));
-	if (rc == SOCKET_ERROR)
-	{
+	int iteratedSeqNum = 0;
+	
 
-		printf("Fehler: sendto, fehler code: %d\n", WSAGetLastError());
-		WSACleanup();
-
-		return 1;
-	}
-	else
+	while (fgets(buf, BUFFER_LEN, fp) != NULL)
 	{
-		printf("%d Bytes gesendet!\n", rc);
-	}
+		
+	
+		memset(&p1, 0, sizeof(packet));
+		strncpy(p1.txtCol, buf, sizeof(p1.txtCol));
+		p1.checkSum = NULL;
+		p1.checkSum = calcChecksum(*(unsigned short *)&p1, sizeof(p1));
+		p1.seqNr = iteratedSeqNum;
+		iteratedSeqNum++;
+
+		rc = sendto(s, (packet*)&p1, sizeof(p1), 0, (SOCKADDR*)&addr, sizeof(SOCKADDR_IN6));
+			if (rc == SOCKET_ERROR)
+			{
+				printf("Fehler: sendto, fehler code: %d\n", WSAGetLastError());
+				WSACleanup();
+				return 1;
+			}
+		else {
+			printf("%d Bytes gesendet!\n", rc);
+			
+			}
+		
+		}
+	
+
+
+
+
 
 		/*rc = recvfrom(s, buf, strlen(buf), 0, (SOCKADDR*)&remoteAddr, &remoteAddrLen);
 		if (rc == SOCKET_ERROR)

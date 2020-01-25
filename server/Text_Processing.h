@@ -14,11 +14,12 @@ char* getTxtColl(char* filesource) {
 	{
 		exit(1);
 	}
+	 
+		if (fgets(buffer, BUFFER_LEN, fp) != NULL) {
+			printf("gelesen: %s", buffer);
 
-	if (fgets(buffer, BUFFER_LEN, fp) != NULL) {
-		printf("gelesen: %s", buffer);
-
-	}
-
+		}
+	
 	return buffer;
 }
+

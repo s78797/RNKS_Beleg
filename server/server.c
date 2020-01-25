@@ -29,7 +29,7 @@ int main(int argc, char* argv[]) {
 	s = INVALID_SOCKET;
 	int len, rcReceive;
 	char ip[256];
-	char buf[256];
+	char buf[512];
 
 	SOCKADDR_IN6 serv_addr;
 	memset(&serv_addr, 0, sizeof(serv_addr));
@@ -77,12 +77,16 @@ int main(int argc, char* argv[]) {
 	}
 
 	len = sizeof(client_info);
+	int checkSeq=1;
 
-	while (1) {
-		rcReceive = recvfrom(s, (packet*)&recPacket,sizeof(packet), 0, NULL, NULL);
-		printf("%s", recPacket.txtCol);
-		int right=checkChecksum(&recPacket);
+	while (rcReceive = recvfrom(s, (packet*)&recPacket, sizeof(packet), 0, NULL, NULL)) {
+		//rcReceive = recvfrom(s, (packet*)&recPacket, sizeof(packet), 0, NULL, NULL);
+		printf("%s/n", recPacket.txtCol);
+		printf("erhaltene Sequenznummer: %d\n", recPacket.seqNr);
+		
 	}
+		//int right=checkChecksum(&recPacket);
+	
 	//(struct sockaddr *)&client_info, &len)
 
 	return 0;
