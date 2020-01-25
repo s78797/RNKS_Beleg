@@ -99,11 +99,12 @@ int main(int argc, char* argv[]) {
 			int correctSeqNum = ((expectedSeqNr + 1) == recPacket.seqNr);
 			printf("%d   ==    %d ----- %d", expectedSeqNr, recPacket.seqNr, correctSeqNum);
 
-			unsigned short placeholder = recPacket.checkSum;
+			/*unsigned short placeholder = recPacket.checkSum;
 			recPacket.checkSum = 0;
 			unsigned short calcPack = calcChecksum(*(unsigned short*)&recPacket, sizeof(recPacket));
 			printf("received%ld --- calculated%ld", placeholder, calcPack);
-			/*if (correctSeqNum && checkChecksum(&recPacket)) {
+			*/
+			if (correctSeqNum && checkChecksum(&recPacket)) {
 				quittung.seqNum = recPacket.seqNr;
 				rcSend =sendto(s, (ack *)&quittung, sizeof(ack), 0, (SOCKADDR*)&client_info, client_info_len);
 				if (rcSend == SOCKET_ERROR){
@@ -113,7 +114,7 @@ int main(int argc, char* argv[]) {
 				}
 				printf("received packet, checksum and seqNr correct\n");
 				expectedSeqNr++;
-			}*/
+			}
 	}
 	
 	rcReceive= closesocket(s);
