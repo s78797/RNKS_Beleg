@@ -7,6 +7,7 @@
 #include "Packet.h"
 #include "Text_Processing.h"
 #include "Checksum_Processing.h"
+#include "ack.h"
 #include <ws2ipdef.h>
 #include <fcntl.h>
 #include <string.h>
@@ -26,23 +27,23 @@ int startWinsock(void) {
 
 
 int main(int argc, char *argv[]) {
-	FILE *fp;
-	char buf[512];
-	//strncpy(buf, getTxtColl("C:\\Users\\Alex\\Desktop\\test.txt"), sizeof(buf));
+	
 	packet p1;
 	memset(&p1, 0, sizeof(packet));
-	p1.checkSum = 0;
-	p1.seqNr = 1;
-	//strncpy(p1.txtCol, buf, sizeof(p1.txtCol));
-	//printf("%s", p1.txtCol);
-
-
-
-
-
+	ack recAck;
+	memset(&recAck, 0, sizeof(ack));
+	
 	long rc;
 	SOCKET s = INVALID_SOCKET;
 	SOCKADDR_IN6 addr;
+	FD_SET fdSet;
+	SOCKET servers[1];
+
+
+
+	FILE *fp;
+	char buf[512];
+
 
 
 	//init Winsock
@@ -71,7 +72,7 @@ int main(int argc, char *argv[]) {
 
 	memset(&addr, 0, sizeof(addr));
 
-	inet_pton(AF_INET6, "fe80::e9e0:ca4b:d325:19cd", &(addr.sin6_addr));
+	inet_pton(AF_INET6, "2003:c2:7727:6800:e9e0:ca4b:d325:19cd", &(addr.sin6_addr));
 	addr.sin6_family = AF_INET6;
 	addr.sin6_port = htons(5000);
 
@@ -105,9 +106,21 @@ int main(int argc, char *argv[]) {
 			}
 		else {
 			printf("%d Bytes gesendet!\n", rc);
+			TIMEVAL totimer;
+			totimer.tv_sec = 10;
+			FD_ZERO(&fdSet);
+			FD_SET(s, &fdSet);
 			
+			while (select(0, &fdSet, NULL, NULL, &totimer) > 0) {
+				
+
+
 			}
 		
+	
+			
+			}
+
 		}
 	
 

@@ -8,8 +8,7 @@ unsigned short calcChecksum(unsigned short *pack, int size) {
 	int count = size;
 	while (count > 1)
 	{
-
-		sum += (unsigned short )pack++;
+		sum += *(unsigned short *)pack++;
 
 		count -= 2;
 	}
@@ -27,8 +26,23 @@ unsigned short calcChecksum(unsigned short *pack, int size) {
 	}
 
 	unsigned short checksum = ~sum;
-	printf("\ngebildete checksum: %ld \n",checksum);
+	
 	return checksum;
 }
 
+int checkChecksum(packet *received_packet) {
+	unsigned short receivedsum = received_packet->checkSum;
+	received_packet->checkSum = 0;
+	unsigned short *ptopacket = received_packet;
+	unsigned short calculatedsum = calcChecksum(ptopacket, sizeof(packet));
+	if (calculatedsum == receivedsum) {
+		
+		printf("Checksum stimmt \n");
+		return 0;
+	}
+	else {
+		printf("Bitfehler aufgetreten\n Errechnet: %i, Erhalten %i",calculatedsum,received_packet->checkSum);
+		return 1;
+	}
+}
 

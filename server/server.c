@@ -4,6 +4,7 @@
 
 #include <stdlib.h>
 #include <windows.h>
+#include "ack.h"
 #include "Packet.h"
 #include "Text_Processing.h"
 #include "Checksum_Processing.h"
@@ -14,7 +15,7 @@
 
 
 
-#pragma commet(lib, "Ws2_32.lib");
+
 
 #define WIN32_LEAN_AND_MEAN
 
@@ -27,20 +28,25 @@
 int main(int argc, char* argv[]) {
 	SOCKET s;
 	s = INVALID_SOCKET;
-	int len, rcReceive;
-	char ip[256];
+	int rcReceive, rcSend;
+	
 	char buf[512];
+	char receivedAdr[INET6_ADDRSTRLEN];
 
 	SOCKADDR_IN6 serv_addr;
 	memset(&serv_addr, 0, sizeof(serv_addr));
 	SOCKADDR_IN6 client_info;
 	memset(&client_info, 0, sizeof(client_info));
+	int client_info_len = sizeof(client_info);
+	
 	WSADATA data;
 	WORD version = MAKEWORD(2, 2);
 	
-	packet recPacket;
-	memset(&recPacket, 0, sizeof(recPacket));;
 
+	packet recPacket;
+	memset(&recPacket, 0, sizeof(recPacket));
+	ack quittung;
+	memset(&quittung, 0, sizeof(quittung));
 
 
 	if ((WSAStartup(version, &data)) != 0) {
@@ -76,15 +82,32 @@ int main(int argc, char* argv[]) {
 
 	}
 
-	len = sizeof(client_info);
-	int checkSeq=1;
+	
 
-	while (rcReceive = recvfrom(s, (packet*)&recPacket, sizeof(packet), 0, NULL, NULL)) {
+
+	int recseqNr = 0;
+
+	while (rcReceive = recvfrom(s, (packet*)&recPacket, sizeof(packet), 0, (SOCKADDR*)&client_info,&client_info_len )) {
 		//rcReceive = recvfrom(s, (packet*)&recPacket, sizeof(packet), 0, NULL, NULL);
-		printf("%s/n", recPacket.txtCol);
-		printf("erhaltene Sequenznummer: %d\n", recPacket.seqNr);
 		
+			printf("erhaltener Text: %s \n", recPacket.txtCol);
+			printf("erhaltene Sequenznummer: %d \n", recPacket.seqNr);
+		
+			printf("erhaltene Adresse: %s\n ", inet_ntop(AF_INET6,(SOCKADDR*) &client_info.sin6_addr, receivedAdr, INET6_ADDRSTRLEN));
+		/*	if (recseqNr < recPacket.seqNr) {
+				quittung.seqNum = recPacket.seqNr;
+				rcSend =sendto(s, (ack *)&quittung, sizeof(ack), 0, (SOCKADDR*)&client_info, client_info_len);
+				if (rcSend == SOCKET_ERROR)
+				{
+					printf("Fehler beim senden der Quittung mit code %d\n", WSAGetLastError());
+					WSACleanup();
+						return 1;
+				}
+				recseqNr++;
+			}*/
 	}
+	
+	rcReceive= closesocket(s);
 		//int right=checkChecksum(&recPacket);
 	
 	//(struct sockaddr *)&client_info, &len)
