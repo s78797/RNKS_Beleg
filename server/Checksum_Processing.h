@@ -2,47 +2,46 @@
 
 unsigned short calcChecksum(unsigned short *pack, int size) {
 
+		register long sum = 0;
+		int count = size;
+		while (count > 1)
+		{
+			sum += *(unsigned short *)pack++;
 
+			count -= 2;
+		}
 
-	register long sum = 0;
-	int count = size;
-	while (count > 1)
-	{
-		sum += *(unsigned short *)pack++;
+		//hinzufügen der übriggebliebenen bytes
+		if (count > 0)
+		{
+			sum += *(unsigned char*)pack;
 
-		count -= 2;
-	}
+		}
+		//32-bit summe wird zu 16 bit umgeformt
+		while (sum >> 16) {
+			sum = (sum & 0xffff) + (sum >> 16);
 
-	//hinzufügen der übriggebliebenen bytes
-	if (count > 0)
-	{
-		sum += *(unsigned char*)pack;
+		}
 
-	}
-	//32-bit summe wird zu 16 bit umgeformt
-	while (sum >> 16) {
-		sum = (sum & 0xffff) + (sum >> 16);
+		unsigned short checksum = ~sum;
 
-	}
-
-	unsigned short checksum = ~sum;
+		return checksum;
 	
-	return checksum;
 }
 
 int checkChecksum(packet *received_packet) {
 	unsigned short receivedsum = received_packet->checkSum;
 	received_packet->checkSum = 0;
-	unsigned short *ptopacket = received_packet;
-	unsigned short calculatedsum = calcChecksum(ptopacket, sizeof(packet));
+
+	unsigned short calculatedsum = calcChecksum( *(unsigned short*)received_packet, sizeof(received_packet));
 	if (calculatedsum == receivedsum) {
 		
 		printf("Checksum stimmt \n");
-		return 0;
+		return 1;
 	}
 	else {
-		printf("Bitfehler aufgetreten\n Errechnet: %i, Erhalten %i",calculatedsum,received_packet->checkSum);
-		return 1;
+		printf("Bitfehler aufgetreten\n Errechnet: %i, Erhalten %i\n",calculatedsum, receivedsum);
+		return 0;
 	}
 }
 
