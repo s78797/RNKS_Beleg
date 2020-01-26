@@ -1,6 +1,6 @@
 #pragma once
 
-unsigned short calcChecksum(unsigned short *pack, int size) {
+unsigned short calcChecksum(unsigned short* pack, int size) {
 
 
 
@@ -38,14 +38,14 @@ int checkChecksum(packet received_packet) {
 	unsigned short receivedsum = received_packet.checkSum;
 	received_packet.checkSum = 0;
 
-	unsigned short calculatedsum = calcChecksum( *(unsigned short*)&received_packet, sizeof(received_packet));
+	unsigned short calculatedsum = calcChecksum(*(unsigned short*)&received_packet, sizeof(received_packet));
 	if (calculatedsum == receivedsum) {
-		
+
 		printf("Checksum stimmt \n");
 		return 1;
 	}
 	else {
-		printf("Bitfehler aufgetreten\n Errechnet: %i, Erhalten %i\n",calculatedsum, receivedsum);
+		printf("Bitfehler aufgetreten\n Errechnet: %i, Erhalten %i\n", calculatedsum, receivedsum);
 		return 0;
 	}
 }
