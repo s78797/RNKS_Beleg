@@ -45,8 +45,7 @@ int main(int argc, char* argv[]) {
 
 	packet recPacket;
 	memset(&recPacket, 0, sizeof(recPacket));
-	ack quittung;
-	memset(&quittung, 0, sizeof(quittung));
+
 
 
 	if ((WSAStartup(version, &data)) != 0) {
@@ -71,7 +70,7 @@ int main(int argc, char* argv[]) {
 
 	memset(&serv_addr, 0, sizeof(serv_addr));
 	serv_addr.sin6_family = AF_INET6;
-	serv_addr.sin6_port = htons(50000);// port as arg to add
+	serv_addr.sin6_port = htons(5000);// port as arg to add
 	serv_addr.sin6_addr = in6addr_any;
 
 	
@@ -85,37 +84,43 @@ int main(int argc, char* argv[]) {
 	
 
 
-	int expectedSeqNr = -1;
+	int expectedSeqNr=0;
 
 	while (1) {
-
+		
 		rcReceive = recvfrom(s, (packet*)&recPacket, sizeof(packet), 0, (SOCKADDR*)&client_info, &client_info_len);
+		
 		//rcReceive = recvfrom(s, (packet*)&recPacket, sizeof(packet), 0, NULL, NULL);
 		
 			printf("erhaltener Text: %s \n", recPacket.txtCol);
 			printf("erhaltene Sequenznummer: %d \n", recPacket.seqNr);
-		
+			printf("received Checksum %ld\n", recPacket.checkSum);
 			printf("erhaltene Adresse: %s\n ", inet_ntop(AF_INET6,(SOCKADDR*) &client_info.sin6_addr, receivedAdr, INET6_ADDRSTRLEN));
-			int correctSeqNum = ((expectedSeqNr + 1) == recPacket.seqNr);
+			
+			
+			int correctSeqNum = ((expectedSeqNr) == recPacket.seqNr);
 			printf("%d   ==    %d ----- %d", expectedSeqNr, recPacket.seqNr, correctSeqNum);
 
-			/*unsigned short placeholder = recPacket.checkSum;
+			unsigned short receivedChecksum = recPacket.checkSum;
 			recPacket.checkSum = 0;
-			unsigned short calcPack = calcChecksum(*(unsigned short*)&recPacket, sizeof(recPacket));
-			printf("received%ld --- calculated%ld", placeholder, calcPack);
-			*/
-			if (correctSeqNum && checkChecksum(&recPacket)) {
+			unsigned short expected_check = calcChecksum(*(unsigned short*)&recPacket,sizeof(recPacket));
+			if (correctSeqNum && (receivedChecksum == expected_check)) {
+				
+				ack quittung;
+				memset(&quittung, 0, sizeof(quittung));
 				quittung.seqNum = recPacket.seqNr;
-				rcSend =sendto(s, (ack *)&quittung, sizeof(ack), 0, (SOCKADDR*)&client_info, client_info_len);
+
+				rcSend = sendto(s, (ack *)&quittung, sizeof(ack), 0, (SOCKADDR*)&client_info, client_info_len);
 				if (rcSend == SOCKET_ERROR){
 					printf("Fehler beim senden der Quittung mit code %d\n", WSAGetLastError());
 					WSACleanup();
 						return 1;
 				}
 				printf("received packet, checksum and seqNr correct\n");
-				expectedSeqNr++;
 			}
+			expectedSeqNr = recPacket.seqNr + 1;
 	}
+	
 	
 	rcReceive= closesocket(s);
 	printf("\n\ncloseddd ");
