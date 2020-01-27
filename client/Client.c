@@ -27,22 +27,24 @@ int startWinsock(void) {
 
 
 int main(int argc, char *argv[]) {
-	
+
 	packet p1;
 	memset(&p1, 0, sizeof(packet));
 	ack recAck;
 	memset(&recAck, 0, sizeof(ack));
-	
-	long rc;
+
+	int rc;
 	SOCKET s = INVALID_SOCKET;
 	SOCKADDR_IN6 addr;
 	FD_SET fdSet;
-	SOCKET servers[1];
+	FD_ZERO(&fdSet);
 
 
 
 	FILE *fp;
 	char buf[512];
+
+
 
 
 
@@ -60,21 +62,19 @@ int main(int argc, char *argv[]) {
 
 	//UDP Socket erstellen
 	s = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
-	if (s == INVALID_SOCKET)
-	{
+	if (s == INVALID_SOCKET){
 		printf("Fehler: Der Socket konnte nicht erstellt werden, fehler code: %d\n", WSAGetLastError());
 		return 1;
 	}
-	else
-	{
+	else{
 		printf("UDP Socket erstellt!\n");
 	}
 
 	memset(&addr, 0, sizeof(addr));
 
-	inet_pton(AF_INET6, "2003:c2:7727:6800:e9e0:ca4b:d325:19cd", &(addr.sin6_addr));
+	inet_pton(AF_INET6, "fe80::f1f4:615:e1a:fcc9", &(addr.sin6_addr));
 	addr.sin6_family = AF_INET6;
-	addr.sin6_port = htons(5000);
+	addr.sin6_port = htons(50000);
 
 	//int packetsize = sizeof(p1);
 	fp = fopen(argv[1], "r");
@@ -82,71 +82,95 @@ int main(int argc, char *argv[]) {
 		printf("Fehler beim lesen der Datei");
 		return 2;
 	}
-	
-	int iteratedSeqNum = 0;
-	
 
-	while (fgets(buf, BUFFER_LEN, fp) != NULL)
-	{
+	ioctlsocket(s, FIONBIO, 0);
+
+
+
+	SOCKADDR_IN6 serv_addr;
+
+	memset(&serv_addr, 0, sizeof(serv_addr));
+	serv_addr.sin6_family = AF_INET6;
+	serv_addr.sin6_port = htons(50000);// port as arg to add
+	serv_addr.sin6_addr = in6addr_any;
+
+
+	if (bind(s, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == SOCKET_ERROR) {
+
+		printf("Fehler: bind, fehler code: %d\n", WSAGetLastError());
+		WSACleanup();
+
+	}
+
+
+
+	long iteratedSeqNum = 0;
+
+	while (fgets(buf, BUFFER_LEN, fp) != NULL){
+		int i = 1;
+		while (i <= 3){
 		
-	
 		memset(&p1, 0, sizeof(packet));
 		strncpy(p1.txtCol, buf, sizeof(p1.txtCol));
-		p1.checkSum = NULL;
+		printf("Text: %s", p1.txtCol);
+		//unsigned short placeholder = calcChecksum(*(unsigned short *)&p1, sizeof(p1));
 		p1.checkSum = calcChecksum(*(unsigned short *)&p1, sizeof(p1));
 		p1.seqNr = iteratedSeqNum;
-		iteratedSeqNum++;
+
 
 		rc = sendto(s, (packet*)&p1, sizeof(p1), 0, (SOCKADDR*)&addr, sizeof(SOCKADDR_IN6));
-			if (rc == SOCKET_ERROR)
-			{
-				printf("Fehler: sendto, fehler code: %d\n", WSAGetLastError());
-				WSACleanup();
-				return 1;
-			}
-		else {
-			printf("%d Bytes gesendet!\n", rc);
-			TIMEVAL totimer;
-			totimer.tv_sec = 10;
-			FD_ZERO(&fdSet);
-			FD_SET(s, &fdSet);
-			
-			while (select(0, &fdSet, NULL, NULL, &totimer) > 0) {
-				
-
-
-			}
-		
-	
-			
-			}
-
-		}
-	
-
-
-
-
-
-		/*rc = recvfrom(s, buf, strlen(buf), 0, (SOCKADDR*)&remoteAddr, &remoteAddrLen);
 		if (rc == SOCKET_ERROR)
 		{
-			printf("Fehler: recvfrom, fehler code: %d\n", WSAGetLastError());
+			printf("Fehler: sendto, fehler code: %d\n", WSAGetLastError());
+			WSACleanup();
 			return 1;
 		}
-		else
-		{
-			printf("%d Bytes empfangen!\n", rc);
-			buf[rc] = '\0';
-			printf("Empfangene Daten: %s\n", buf);
-		}*/
-	
-	
+		
+		printf("%d Bytes gesendet!\n", rc);
+
+
+		FD_SET(s, &fdSet);
+		TIMEVAL totimer;
+		totimer.tv_sec = 5;
+		totimer.tv_usec = 0;
+
+		int timer = select(0, &fdSet, NULL, NULL, &totimer);
+		if (timer > 0){
+
+			int rcReceive = recvfrom(s, (ack*)&recAck, sizeof(recAck), 0, NULL, NULL);
+			if (rcReceive == SOCKET_ERROR) {
+					printf("Fehler beim erhalten der Quittung mit code %d\n", WSAGetLastError());
+					WSACleanup();
+					return 1;
+
+			}
+			else {
+				printf("erhaltene SeqNum der Quittung: %lu\n", recAck.seqNum);
+				if (recAck.seqNum == p1.seqNr)break;;
+			}
+		}
+			else if (timer == 0){
+				printf("TIMEOUT SENDE PAKET NOCHMAL:\n");
+				i++;
+			}
+		
+			if (i == 3){ printf("Verbindung zum Host verloren"); return 8; }
+		}
+				iteratedSeqNum++;
+	}
 	
 
 
 
-	
+
+
+
+
+
+
+
+
+
 	WSACleanup();
 	s = INVALID_SOCKET;
 	return 0;

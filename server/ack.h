@@ -2,7 +2,7 @@
 
 
 typedef struct Acknowledement {
-	unsigned short seqNum;
+	long seqNum;
 
 
 }ack;
