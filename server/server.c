@@ -78,9 +78,9 @@ int handle_requests(SOCKET *sock) {
 	char receivedAddr[INET6_ADDRSTRLEN];
 
 	long expectedSeqNr = 0;
-	while (1) {
+	while (expectedSeqNr < 10) {
 		printf("waiting...\n");
-		int receiveCode = recvfrom(*sock, (packet*)&recPacket, sizeof(packet), 0, (SOCKADDR*)&clientAddr, &client_info_len) == SOCKET_ERROR;
+		int receiveCode = recvfrom(*sock, (packet*)&recPacket, sizeof(packet), 0, (SOCKADDR*)&clientAddr, &client_info_len);
 		if (receiveCode == SOCKET_ERROR) {
 			printf("receiving data failed with error: %u", WSAGetLastError());
 			WSACleanup();
@@ -89,22 +89,24 @@ int handle_requests(SOCKET *sock) {
 		print_status(&recPacket, expectedSeqNr);
 		printf("received address: %s\n ", inet_ntop(AF_INET6, (SOCKADDR*)&clientAddr.sin6_addr, receivedAddr, INET6_ADDRSTRLEN));
 
+		long receivedChecksum = recPacket.checkSum;
 		recPacket.checkSum = 0;
 		long expectedChecksum = calcChecksum(*(unsigned short*)&recPacket, sizeof(recPacket));
-		if ((expectedSeqNr == recPacket.seqNr) && (recPacket.checkSum == expectedChecksum)) {
-			send_ackt(&sock, &clientAddr, expectedSeqNr);
+		if ((expectedSeqNr == recPacket.seqNr) && (receivedChecksum == expectedChecksum)) {
+			send_ackt(sock, &clientAddr, expectedSeqNr);
 		}
 		expectedSeqNr++;
 	}
 }
 
 int print_status(packet *received, int expectedSeqNr) {
-	printf("----RECEIVED PACKET\n----");
-	printf("Text: %s \n", received->txtCol);
+	printf("\n\n----RECEIVED PACKET----\n");
+	printf("Text: %s", received->txtCol);
 	printf("SeqNr: %ld \n", received->seqNr);
 	printf("checksum %ld\n", received->checkSum);
 	printf("expected SeqNr: %lu\nreceived SeqNr: %lu\n", expectedSeqNr, received->seqNr);
-	printf("----------------\n");
+	printf("---------------------------\n\n");
+	return 0;
 }
 
 int send_ackt(SOCKET *sock, SOCKADDR_IN6 *clientAddr, int seqNum) {
@@ -112,7 +114,7 @@ int send_ackt(SOCKET *sock, SOCKADDR_IN6 *clientAddr, int seqNum) {
 	memset(&ackt, 0, sizeof(ackt));
 	ackt.seqNum = seqNum;
 	printf("SeqNr of acknowledgment: %ld\n", ackt.seqNum);
-	int sendCode = sendto(sock, (ack*)&ackt, sizeof(ackt), 0, (SOCKADDR*)&clientAddr, sizeof(SOCKADDR_IN6));
+	int sendCode = sendto(*sock, (ack*)&ackt, sizeof(ackt), 0, (SOCKADDR*)clientAddr, sizeof(SOCKADDR_IN6));
 	if (sendCode == SOCKET_ERROR) {
 		printf("Fehler beim senden der Quittung mit code %d\n", WSAGetLastError());
 		WSACleanup();
