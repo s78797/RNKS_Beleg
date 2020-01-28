@@ -5,7 +5,6 @@ typedef struct Packet {
 	long seqNr;
 	long checkSum;
 
-
 }packet;
 
 

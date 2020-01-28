@@ -4,14 +4,16 @@
 
 #include <stdlib.h>
 #include <windows.h>
-#include "Packet.h"
-#include "Text_Processing.h"
-#include "Checksum_Processing.h"
-#include "ack.h"
 #include <ws2ipdef.h>
 #include <fcntl.h>
 #include <string.h>
 #include <WS2tcpip.h>
+#include <errno.h>
+
+#include "Packet.h"
+#include "Text_Processing.h"
+#include "Checksum_Processing.h"
+#include "ack.h"
 
 
 
@@ -39,20 +41,14 @@ int main(int argc, char *argv[]) {
 	FD_SET fdSet;
 	FD_ZERO(&fdSet);
 
-
-
-	FILE *fp;
 	char buf[512];
-
-
-
-
 
 	//init Winsock
 	rc = startWinsock();
 	if (rc != 0)
 	{
 		printf("Fehler: startWinsock, fehler code: %d\n", rc);
+
 		return 1;
 	}
 	else
@@ -72,13 +68,14 @@ int main(int argc, char *argv[]) {
 
 	memset(&addr, 0, sizeof(addr));
 
-	inet_pton(AF_INET6, "fe80::f1f4:615:e1a:fcc9", &(addr.sin6_addr));
+	inet_pton(AF_INET6, "fe80::a861:ec31:c15e:89a7", &(addr.sin6_addr));
 	addr.sin6_family = AF_INET6;
 	addr.sin6_port = htons(50000);
 
 	//int packetsize = sizeof(p1);
-	fp = fopen(argv[1], "r");
+	FILE *fp = fopen("D:\\Dokumente\\input.txt", "r");
 	if (fp == NULL) {
+		printf("Error %d \n", errno);
 		printf("Fehler beim lesen der Datei");
 		return 2;
 	}
