@@ -1,10 +1,8 @@
 
-
-
 #pragma once
 typedef struct Packet {
 	char txtCol[256];
-	int seqNr;
+	int seqNum;
 	unsigned short checkSum;
 	
 
