@@ -188,7 +188,8 @@ int send_ackt(SOCKET *sock, SOCKADDR_IN6 *clientAddr, int seqNo) {
 int main(int argc, char* argv[]) {
 
 	if (argc != 4) {
-		printf("usage: %s [port filepath]", argv[0]);
+		printf("usage: %s [port filepath errorcode]", argv[0]);
+		return -1;
 	}
 	int port = atoi(argv[1]);
 	char* fileadress= argv[2];
