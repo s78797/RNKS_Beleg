@@ -1,0 +1,50 @@
+= Beleg Rechnernetze und Kommunikation
+Philipp Barth; Alexander Schoch; Justin Schirdewahn; Florian Freier
+30.01.2020 WS19/20 HTW Dresden Modul RNKS - Prof. Dr.-Ing. Kühn
+:toc: 
+:toc-title: Inhaltsverzeichnis
+:sectnums:
+```
+Implementierung von SAW auf UDP in C
+```
+
+= Dokumentation
+== Kurzbeschreibung
+Wie in der Belegaufgabe gefordert hat das Team in der Programmiersprache C das SAW (Send and Wait) Protokoll auf UDP (User Datagram Protocol) aufgestzt um ein tieferes Verständniss zu Rechnernetzen zu entwickeln.
+
+Der Sender, wurde hier als _Client_ bezeichnet.
+Der Empfänger, wurde hier als _Server_ bezeichnet.
+
+== Vorgehen zum ausführen von Client und Server
+. Starten Server
+.. Parameter Beschreibung
+. Starten Client
+.. Parameter Beschreibung
+
+[#quellen]
+= Quellen
+.Quellen mit Beschreibung und Zugriffsdatum
+[%header,cols="3,1,1"]
+|===
+| Beschreibung | Quelle | Zugriff
+| Folien von Prof. Dr.-Ing. Kühn zur Vorlesung RNKS | https://www2.htw-dresden.de/~skuehn/VL/rnks/8_Sockets.pdf | WS19/20
+|Diverse Seiten der Microsoft Dokumentation|- https://docs.microsoft.com
+
+- https://docs.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-socket
+
+- https://docs.microsoft.com/de-de/dotnet/api/system.net.sockets.udpclient.-ctor?view=netframework-4.8#System_Net_Sockets_UdpClient__ctor_System_Net_Sockets_AddressFamily | 20.12.19 - 30.01.20
+|Erklärung Winsocket|https://www.winsocketdotnetworkprogramming.com/clientserversocketnetworkcommunication8n.html|27.12.2019
+|UDP Tutorial für C|http://www.c-worker.ch/tuts/udp.php|04.01.2020
+|Socket Programmierung in C|https://www.tobscore.com/socket-programmierung-in-c/|27.12.19
+|UDP ipv6 Diagram|https://www.researchgate.net/figure/IPv6-and-UDP-at-the-network-and-transport-layer-respectively-with-parameters-for_fig6_311731245|05.01.2020
+|Timeouts in C|http://www.mathcs.emory.edu/~cheung/Courses/455/Syllabus/9-netw-prog/timeout.html| 28.01.2020
+|UDP Server Client Implementation|https://www.geeksforgeeks.org/udp-server-client-implementation-c/| 22.01.2020
+| Vorlage für Selbstständigkeitserklärung | https://tu-dresden.de/bu/wirtschaft/vwl/iwp/ressourcen/dateien/studium/Selbstaendigkeitserklaerung.pdf?lang=de | 30.01.2020
+|===
+
+= Selbstständigkeitserklärung
+```
+Wir, Philipp Barth, Alexander Schoch, Justin Schirdewahn und Florian Freier erklären hiermit, dass die vorliegende Arbeit selbständig und ohne die Benutzung anderer als der angegebenen Hilfsmittel angefertigt wurde. 
+Die aus fremden Quellen wörtlich oder sinngemäß übernommenen Gedanken sind als solche kenntlich gemacht.
+ Wir erklären ferner, das wir die vorliegende Arbeit an keiner anderen Stelle als Prüfungsarbeit eingereicht haben oder einreichen werden.
+```

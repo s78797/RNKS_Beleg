@@ -158,16 +158,19 @@ int send_ackt(SOCKET *sock, SOCKADDR_IN6 *clientAddr, int seqNo) {
 
 int main(int argc, char* argv[]) {
 
-	if (argc != 2) {
-		printf("usage: %s [port filepath]", argv[0]);
+	if (argc != 4) {
+		printf("usage: %s [port filepath errorcode]", argv[0]);
+		return -1;
 	}
 	int port = atoi(argv[1]);
-
+	char* fileadress= argv[2];
+	int failmode=atoi(argv[3]);
 	initialze_winsock();
 	SOCKET sock = create_new_socket();
 	bind_socket_to_port(&sock, port);
 
-	if (saw_receive(&sock, "D:\\Dokumente\\output.txt" ,0) == 1) {
+
+	if (saw_receive(&sock, fileadress, failmode) == 1) {
 		printf("Connection was closed.\n");
 	}
 
