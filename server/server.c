@@ -9,9 +9,9 @@
 #include <fcntl.h>
 #include <string.h>
 #include <WS2tcpip.h>
-#include <stdbool.h>
 #include <math.h>
 
+#include "\Users\phili\git\uni\RNKS_Beleg\header\sock_init.h"
 #include "\Users\phili\git\uni\RNKS_Beleg\header\ack.h"
 #include "\Users\phili\git\uni\RNKS_Beleg\header\Packet.h"
 #include "\Users\phili\git\uni\RNKS_Beleg\header\Checksum_Processing.h"
@@ -20,44 +20,9 @@
 #pragma warning(disable : 4996)
 #pragma warning(disable:5000)
 
-/*
-calls WSAStartup() to initialize winsock
-returns 1 - failed
-		0 - succeded
-*/
-int initialze_winsock() {
-	WSADATA data;
-	WORD version = MAKEWORD(2, 2);
-	if ((WSAStartup(version, &data)) != 0) {
-		printf("WSAStartup failed with error: %u", WSAGetLastError());
-		WSACleanup();
-		return 1;
-	}
-	else {
-		printf("Initialization succeded.\n");
-	}
-	return 0;
-}
 
 /*
-creates a new Socket and returns it if its not an invalid socket
-*/
-SOCKET create_new_socket() {
-	SOCKET sock = INVALID_SOCKET;
-	sock = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
-	if (sock == INVALID_SOCKET) {
-		printf("socket function failed with error: %u\n", WSAGetLastError());
-		WSACleanup();
-		return 1;
-	}
-	else {
-		printf("UDP socket was created.\n");
-		return sock;
-	}
-}
-
-/*
-binds given @param{socekt} to specified @param{port}
+binds given socket to specified port
 */
 int bind_socket_to_port(SOCKET *s, int port) {
 	SOCKADDR_IN6 serv_addr;
@@ -70,15 +35,18 @@ int bind_socket_to_port(SOCKET *s, int port) {
 	if (bind(*s, (SOCKADDR *)&serv_addr, sizeof(serv_addr)) == SOCKET_ERROR) {
 		printf("bind of socket failed with error: %u\n", WSAGetLastError());
 		WSACleanup();
-		return 1;
+		return -1;
 	}
 	else {
 		printf("socket bind succeded.\n");
-		return 0;
+		return 1;
 	}
 
 }
 
+/*
+creates a packet with some randomly changed bits
+*/
 void create_malformed_packet(packet *pack) {
 	char *buf = pack->txtCol;
 
@@ -97,7 +65,7 @@ failmode: 2 - wrong ack was sent
 failmode: 3 - send delayed ack after 6 seconds
 failmode: 4 - simulate bit errors in packet data
 */
-int saw_receive(SOCKET *sock, int failmode) {
+int saw_receive(SOCKET *sock, char *filePath, int failmode) {
 	SOCKADDR_IN6 clientAddr;
 	packet recPacket;
 	memset(&clientAddr, 0, sizeof(clientAddr));
@@ -115,26 +83,29 @@ int saw_receive(SOCKET *sock, int failmode) {
 			WSACleanup();
 			return 1;
 		}
+		// simulates that some bits changed over transmission
 		if (failmode == 4) {
 			create_malformed_packet(&recPacket);
 			failmode = 0;
 		}
+		//prints status of receives packet to console
 		print_status(&recPacket, expectedSeqNr);
 
 		long receivedChecksum = recPacket.checkSum;
 		recPacket.checkSum = 0;
+
 		long expectedChecksum = calcChecksum(*(unsigned short*)&recPacket, sizeof(recPacket));
 		printf("checksum server expected: %lu\n", expectedChecksum);
 		printf("received address: %s\n", inet_ntop(AF_INET6, (SOCKADDR*)&clientAddr.sin6_addr, receivedAddr, INET6_ADDRSTRLEN));
-		bool correctChecksum = receivedChecksum == expectedChecksum;
-
+		
+		int correctChecksum = receivedChecksum == expectedChecksum;
 		if ((expectedSeqNr > recPacket.seqNo) && correctChecksum) {
 			send_ackt(sock, &clientAddr, recPacket.seqNo);
 			printf("received duplicated pacekt again...ignoring...\n");
 		}
 		else if ((expectedSeqNr == recPacket.seqNo) && correctChecksum) {
 			printf("received correct packet\n");
-			// write txtCol to file
+			write_to_file(filePath, recPacket.txtCol);
 			if (failmode == 1) {
 				failmode = 0;
 			}
@@ -196,7 +167,7 @@ int main(int argc, char* argv[]) {
 	SOCKET sock = create_new_socket();
 	bind_socket_to_port(&sock, port);
 
-	if (saw_receive(&sock, 4) == 1) {
+	if (saw_receive(&sock, "D:\\Dokumente\\output.txt" ,0) == 1) {
 		printf("Connection was closed.\n");
 	}
 

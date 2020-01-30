@@ -3,23 +3,35 @@
 #define BUFFER_LEN 256
 
 
-char* getTxtColl(char* filesource) {
-
-	FILE* fp;
-	int linecount = 0;
-	char buffer[BUFFER_LEN];
-
-	fp = fopen(filesource, "r");
-	if (fp == NULL)
-	{
-		exit(1);
+FILE* get_file_pointer(char *filepath) {
+	FILE *fp = fopen(filepath, "r");
+	if (fp == NULL) {
+		printf("Reading file from path '%s' failed with error: %d \n", filepath, errno);
+		return -1;
 	}
+	return fp;
+}
 
-	if (fgets(buffer, BUFFER_LEN, fp) != NULL) {
-		printf("gelesen: %s", buffer);
 
+int write_to_file(char *filepath, char* buffer) {
+	FILE *fp = fopen(filepath, "a");
+	if (fp == NULL) {
+		printf("Writing to file from path '%s' failed with error: %d \n", filepath, errno);
+		return -1;
 	}
+	if (fputs(buffer, fp) == EOF) {
+		printf("Reached EOF...\n");
+		fclose(fp);
+	}
+}
 
-	return buffer;
+
+int get_next_frame(char **buffer, FILE *fp) {
+	if (fgets(*buffer, BUFFER_LEN, fp) != NULL) {
+		return 1;
+	}
+	else {
+		return -1;
+	}
 }
 
