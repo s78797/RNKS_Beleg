@@ -62,8 +62,9 @@ void create_malformed_packet(packet *pack) {
 failmode: 0 - no fail
 failmode: 1 - no ack was sent / ack got lost
 failmode: 2 - wrong ack was sent
-failmode: 3 - send delayed ack after 6 seconds
-failmode: 4 - simulate bit errors in packet data
+failmode: 3 - wrong ack was sent, but correct followed
+failmode: 4 - send delayed ack after 6 seconds
+failmode: 5 - simulate bit errors in packet data
 */
 int saw_receive(SOCKET *sock, char *filePath, int failmode) {
 	SOCKADDR_IN6 clientAddr;
@@ -84,7 +85,7 @@ int saw_receive(SOCKET *sock, char *filePath, int failmode) {
 			return 1;
 		}
 		// simulates that some bits changed over transmission
-		if (failmode == 4) {
+		if (failmode == 5) {
 			create_malformed_packet(&recPacket);
 			failmode = 0;
 		}
@@ -114,6 +115,12 @@ int saw_receive(SOCKET *sock, char *filePath, int failmode) {
 				failmode = 0;
 			}
 			else if (failmode == 3) {
+				send_ackt(sock, &clientAddr, -99999);
+				Sleep(1000);
+				send_ackt(sock, &clientAddr, recPacket.seqNo);
+				failmode = 0;
+			}
+			else if (failmode == 4) {
 				Sleep(6000);
 				send_ackt(sock, &clientAddr, expectedSeqNr);
 				failmode = 0;
