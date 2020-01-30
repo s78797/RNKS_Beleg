@@ -88,6 +88,7 @@ packet create_packet(char *buf, long seqNo) {
 	return pack;
 }
 
+
 void send_packet_to(packet pack, SOCKET *s, SOCKADDR_IN6 *serverAddr) {
 	int rc = sendto(*s, (packet*)&pack, sizeof(pack), 0, (SOCKADDR*)serverAddr, sizeof(SOCKADDR_IN6));
 	if (rc == SOCKET_ERROR) {
@@ -95,7 +96,16 @@ void send_packet_to(packet pack, SOCKET *s, SOCKADDR_IN6 *serverAddr) {
 		WSACleanup();
 		return 1;
 	}
-	printf("sent %d bytes with SeqNo: %lu\n", rc, pack.seqNo);
+	print_status(&pack);
+}
+
+int print_status(packet *sent) {
+	printf("\n\n----SENT PACKET----\n");
+	printf("Text: %s", sent->txtCol);
+	printf("SeqNo: %ld \n", sent->seqNo);
+	printf("checksum %ld\n", sent->checkSum);
+	printf("---------------------------\n");
+	return 0;
 }
 
 int receive_ack(SOCKET *sock) {
@@ -108,7 +118,7 @@ int receive_ack(SOCKET *sock) {
 		WSACleanup();
 	}
 	else {
-		printf("received ack with SeqNo: %lu\n", recAck.seqNo);
+		printf("received ack with SeqNo: %ld\n", recAck.seqNo);
 	}
 	return recAck.seqNo;
 }
@@ -118,18 +128,24 @@ void set_timeout(TIMEVAL *t, int s) {
 	t->tv_usec = 0;
 }
 
-int saw_send(SOCKET *sock, FILE *filePointer, SOCKADDR_IN6 *serverAddr) {
+void init_set_SET(SOCKET **sock, FD_SET *set) {
+	FD_ZERO(set);
+	FD_SET(**sock, set);
+}
+
+
+int saw_send(SOCKET *sock, FILE *filePointer, SOCKADDR_IN6 *serverAddr, int failmode) {
 	
 	TIMEVAL timeout;
 	FD_SET fdSet;
-	FD_ZERO(&fdSet);
-	FD_SET(*sock, &fdSet);
-	char buf[512];
+	init_set_SET(&sock, &fdSet);
+	char buf[BUFFER_LEN];
 	set_io_mode(sock, 1);
 
 	long seqNo = 0;
 	while (fgets(buf, BUFFER_LEN, filePointer) != NULL) {
 		packet pack = create_packet(buf, seqNo);
+		
 		send_packet_to(pack, sock, serverAddr);
 		set_timeout(&timeout, 5);
 		int timer;
@@ -140,8 +156,7 @@ int saw_send(SOCKET *sock, FILE *filePointer, SOCKADDR_IN6 *serverAddr) {
 			if (timer == 0) {
 				printf("TIMEOUT...send packet again.\n");
 				send_packet_to(pack, sock, serverAddr);
-				FD_ZERO(&fdSet);
-				FD_SET(*sock, &fdSet);
+				init_set_SET(&sock, &fdSet);
 				set_timeout(&timeout, 5);
 				numberOfTimeouts++;
 			}
@@ -151,8 +166,7 @@ int saw_send(SOCKET *sock, FILE *filePointer, SOCKADDR_IN6 *serverAddr) {
 					successful = 1;
 				}
 				else {
-					FD_ZERO(&fdSet);
-					FD_SET(*sock, &fdSet);
+					init_set_SET(&sock, &fdSet);
 				}
 			}
 			else if (timer == SOCKET_ERROR) {
@@ -186,7 +200,7 @@ int main(int argc, char *argv[]) {
 	FILE *filePointer = open_text_file(filepath);
 	set_addr_and_port(port, ipv6, &serverAddr);
 
-	if (saw_send(&sock, filePointer, &serverAddr) == -1) {
+	if (saw_send(&sock, filePointer, &serverAddr, 1) == -1) {
 		printf("Lost Connection to Receiver\n");
 	}
 

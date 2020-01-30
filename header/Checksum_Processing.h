@@ -2,8 +2,6 @@
 
 unsigned short calcChecksum(unsigned short* pack, int size) {
 
-
-
 	register long sum = 0;
 	int count = size;
 	while (count > 1)
@@ -27,7 +25,6 @@ unsigned short calcChecksum(unsigned short* pack, int size) {
 	}
 
 	unsigned short checksum = ~sum;
-	printf("\ngebildete checksum: %ld \n", checksum);
 	return checksum;
 }
 

@@ -10,6 +10,7 @@
 #include <string.h>
 #include <WS2tcpip.h>
 #include <stdbool.h>
+#include <math.h>
 
 #include "\Users\phili\git\uni\RNKS_Beleg\header\ack.h"
 #include "\Users\phili\git\uni\RNKS_Beleg\header\Packet.h"
@@ -19,6 +20,11 @@
 #pragma warning(disable : 4996)
 #pragma warning(disable:5000)
 
+/*
+calls WSAStartup() to initialize winsock
+returns 1 - failed
+		0 - succeded
+*/
 int initialze_winsock() {
 	WSADATA data;
 	WORD version = MAKEWORD(2, 2);
@@ -33,6 +39,9 @@ int initialze_winsock() {
 	return 0;
 }
 
+/*
+creates a new Socket and returns it if its not an invalid socket
+*/
 SOCKET create_new_socket() {
 	SOCKET sock = INVALID_SOCKET;
 	sock = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
@@ -47,9 +56,10 @@ SOCKET create_new_socket() {
 	}
 }
 
-
+/*
+binds given @param{socekt} to specified @param{port}
+*/
 int bind_socket_to_port(SOCKET *s, int port) {
-
 	SOCKADDR_IN6 serv_addr;
 	memset(&serv_addr, 0, sizeof(serv_addr));
 
@@ -69,11 +79,23 @@ int bind_socket_to_port(SOCKET *s, int port) {
 
 }
 
+void create_malformed_packet(packet *pack) {
+	char *buf = pack->txtCol;
+
+	int rand1 = rand() % 20;
+	int rand2 = rand() % 256;
+	buf[rand1] = buf[rand1] & buf[rand2];
+	buf[rand2] = buf[rand1] ^ buf[rand2];
+	
+	return 0;
+}
+
 /*
 failmode: 0 - no fail
-failmode: 1 - no ack was sent / ack was lost
+failmode: 1 - no ack was sent / ack got lost
 failmode: 2 - wrong ack was sent
 failmode: 3 - send delayed ack after 6 seconds
+failmode: 4 - simulate bit errors in packet data
 */
 int saw_receive(SOCKET *sock, int failmode) {
 	SOCKADDR_IN6 clientAddr;
@@ -93,18 +115,25 @@ int saw_receive(SOCKET *sock, int failmode) {
 			WSACleanup();
 			return 1;
 		}
+		if (failmode == 4) {
+			create_malformed_packet(&recPacket);
+			failmode = 0;
+		}
+		print_status(&recPacket, expectedSeqNr);
+
 		long receivedChecksum = recPacket.checkSum;
 		recPacket.checkSum = 0;
-		long expectedChecksum = calcChecksum(*(unsigned short*)&recPacket, sizeof(recPacket));		
+		long expectedChecksum = calcChecksum(*(unsigned short*)&recPacket, sizeof(recPacket));
+		printf("checksum server expected: %lu\n", expectedChecksum);
+		printf("received address: %s\n", inet_ntop(AF_INET6, (SOCKADDR*)&clientAddr.sin6_addr, receivedAddr, INET6_ADDRSTRLEN));
 		bool correctChecksum = receivedChecksum == expectedChecksum;
-		
+
 		if ((expectedSeqNr > recPacket.seqNo) && correctChecksum) {
 			send_ackt(sock, &clientAddr, recPacket.seqNo);
 			printf("received duplicated pacekt again...ignoring...\n");
 		}
 		else if ((expectedSeqNr == recPacket.seqNo) && correctChecksum) {
-			print_status(&recPacket, expectedSeqNr);
-			printf("received address: %s\n", inet_ntop(AF_INET6, (SOCKADDR*)&clientAddr.sin6_addr, receivedAddr, INET6_ADDRSTRLEN));
+			printf("received correct packet\n");
 			// write txtCol to file
 			if (failmode == 1) {
 				failmode = 0;
@@ -125,17 +154,22 @@ int saw_receive(SOCKET *sock, int failmode) {
 		}
 	}
 }
-
+/*
+prints data of received packet
+*/
 int print_status(packet *received, int expectedSeqNr) {
 	printf("\n\n----RECEIVED PACKET----\n");
 	printf("Text: %s", received->txtCol);
 	printf("SeqNo: %ld \n", received->seqNo);
 	printf("checksum %ld\n", received->checkSum);
-	printf("expected SeqNo: %lu\nreceived SeqNo: %lu\n", expectedSeqNr, received->seqNo);
+	printf("expected SeqNo: %ld\nreceived SeqNo: %ld\n", expectedSeqNr, received->seqNo);
 	printf("---------------------------\n");
 	return 0;
 }
 
+/*
+this function sends Ack to given @param{socket} and @param{addr} with given @param{seqNo}
+*/
 int send_ackt(SOCKET *sock, SOCKADDR_IN6 *clientAddr, int seqNo) {
 	ack ackt;
 	memset(&ackt, 0, sizeof(ackt));
@@ -144,17 +178,17 @@ int send_ackt(SOCKET *sock, SOCKADDR_IN6 *clientAddr, int seqNo) {
 	if (sendCode == SOCKET_ERROR) {
 		printf("sending acknowledgement failed with error: %d\n", WSAGetLastError());
 		WSACleanup();
-		return 1;
+		return -1;
 	}
 	printf("sent ack with seqNr %ld\n", ackt.seqNo);
+	return 0;
 }
 
 
 int main(int argc, char* argv[]) {
 
 	if (argc != 2) {
-		printf("usage: %s [ipv6 port filepath]", argv[0]);
-		//exit(-1);
+		printf("usage: %s [port filepath]", argv[0]);
 	}
 	int port = atoi(argv[1]);
 
@@ -162,7 +196,7 @@ int main(int argc, char* argv[]) {
 	SOCKET sock = create_new_socket();
 	bind_socket_to_port(&sock, port);
 
-	if (saw_receive(&sock, 3) == 1) {
+	if (saw_receive(&sock, 4) == 1) {
 		printf("Connection was closed.\n");
 	}
 

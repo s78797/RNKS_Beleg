@@ -1,6 +1,6 @@
 #pragma once
 #define _CRT_SECURE_NO_WARNINGS
-#define BUFFER_LEN 512
+#define BUFFER_LEN 256
 
 
 char* getTxtColl(char* filesource) {
