@@ -125,21 +125,23 @@ int saw_send(SOCKET *sock, FILE *filePointer, SOCKADDR_IN6 *serverAddr) {
 	FD_ZERO(&fdSet);
 	FD_SET(*sock, &fdSet);
 	char buf[512];
+	set_io_mode(sock, 1);
 
 	long seqNo = 0;
 	while (fgets(buf, BUFFER_LEN, filePointer) != NULL) {
 		packet pack = create_packet(buf, seqNo);
 		send_packet_to(pack, sock, serverAddr);
 		set_timeout(&timeout, 5);
-
 		int timer;
 		int numberOfTimeouts = 0;
 		int successful = 0;
-		while (!successful || numberOfTimeouts < 3) {
-			timer = select(1, &fdSet, NULL, NULL, &timeout);
+		while ((!successful) && (numberOfTimeouts <= 3)) {
+			timer = select(0, &fdSet, NULL, NULL, &timeout);
 			if (timer == 0) {
 				printf("TIMEOUT...send packet again.\n");
 				send_packet_to(pack, sock, serverAddr);
+				FD_ZERO(&fdSet);
+				FD_SET(*sock, &fdSet);
 				set_timeout(&timeout, 5);
 				numberOfTimeouts++;
 			}
@@ -153,12 +155,12 @@ int saw_send(SOCKET *sock, FILE *filePointer, SOCKADDR_IN6 *serverAddr) {
 					FD_SET(*sock, &fdSet);
 				}
 			}
-			else if (numberOfTimeouts == 2) {
-				printf("Coud not receive acknowledgement after 3 tries\n");
-				return -1;
-			}
 			else if (timer == SOCKET_ERROR) {
 				printf("select function failed with error: %u\n", WSAGetLastError());
+				return -1;
+			}
+			if (numberOfTimeouts == 3) {
+				printf("Coud not receive acknowledgement after 3 tries\n");
 				return -1;
 			}
 		}
@@ -182,9 +184,7 @@ int main(int argc, char *argv[]) {
 	SOCKADDR_IN6 serverAddr;
 	SOCKET sock = create_new_socket();
 	FILE *filePointer = open_text_file(filepath);
-
 	set_addr_and_port(port, ipv6, &serverAddr);
-	set_io_mode(&sock, (u_long)1);
 
 	if (saw_send(&sock, filePointer, &serverAddr) == -1) {
 		printf("Lost Connection to Receiver\n");

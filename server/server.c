@@ -69,7 +69,13 @@ int bind_socket_to_port(SOCKET *s, int port) {
 
 }
 
-int saw_receive(SOCKET *sock, int sendNoAckForOneTime) {
+/*
+failmode: 0 - no fail
+failmode: 1 - no ack was sent / ack was lost
+failmode: 2 - wrong ack was sent
+failmode: 3 - send delayed ack after 6 seconds
+*/
+int saw_receive(SOCKET *sock, int failmode) {
 	SOCKADDR_IN6 clientAddr;
 	packet recPacket;
 	memset(&clientAddr, 0, sizeof(clientAddr));
@@ -89,17 +95,28 @@ int saw_receive(SOCKET *sock, int sendNoAckForOneTime) {
 		}
 		long receivedChecksum = recPacket.checkSum;
 		recPacket.checkSum = 0;
-		long expectedChecksum = calcChecksum(*(unsigned short*)&recPacket, sizeof(recPacket));
+		long expectedChecksum = calcChecksum(*(unsigned short*)&recPacket, sizeof(recPacket));		
 		bool correctChecksum = receivedChecksum == expectedChecksum;
-		if ((expectedSeqNr - 1 == recPacket.seqNo) && correctChecksum) {
-			send_ackt(sock, &clientAddr, expectedSeqNr - 1);
+		
+		if ((expectedSeqNr > recPacket.seqNo) && correctChecksum) {
+			send_ackt(sock, &clientAddr, recPacket.seqNo);
+			printf("received duplicated pacekt again...ignoring...\n");
 		}
 		else if ((expectedSeqNr == recPacket.seqNo) && correctChecksum) {
 			print_status(&recPacket, expectedSeqNr);
 			printf("received address: %s\n", inet_ntop(AF_INET6, (SOCKADDR*)&clientAddr.sin6_addr, receivedAddr, INET6_ADDRSTRLEN));
 			// write txtCol to file
-			if (sendNoAckForOneTime) {
-				sendNoAckForOneTime = 0;
+			if (failmode == 1) {
+				failmode = 0;
+			}
+			else if (failmode == 2) {
+				send_ackt(sock, &clientAddr, -99999);
+				failmode = 0;
+			}
+			else if (failmode == 3) {
+				Sleep(6000);
+				send_ackt(sock, &clientAddr, expectedSeqNr);
+				failmode = 0;
 			}
 			else {
 				send_ackt(sock, &clientAddr, expectedSeqNr);
@@ -123,14 +140,13 @@ int send_ackt(SOCKET *sock, SOCKADDR_IN6 *clientAddr, int seqNo) {
 	ack ackt;
 	memset(&ackt, 0, sizeof(ackt));
 	ackt.seqNo = seqNo;
-	printf("SeqNr of acknowledgment: %ld\n", ackt.seqNo);
 	int sendCode = sendto(*sock, (ack*)&ackt, sizeof(ackt), 0, (SOCKADDR*)clientAddr, sizeof(SOCKADDR_IN6));
 	if (sendCode == SOCKET_ERROR) {
 		printf("sending acknowledgement failed with error: %d\n", WSAGetLastError());
 		WSACleanup();
 		return 1;
 	}
-	printf("received packet, checksum and seqNr correct\n");
+	printf("sent ack with seqNr %ld\n", ackt.seqNo);
 }
 
 
@@ -146,7 +162,9 @@ int main(int argc, char* argv[]) {
 	SOCKET sock = create_new_socket();
 	bind_socket_to_port(&sock, port);
 
-	saw_receive(&sock, 0);
+	if (saw_receive(&sock, 3) == 1) {
+		printf("Connection was closed.\n");
+	}
 
 	closesocket(sock);
 
