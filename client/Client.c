@@ -11,12 +11,10 @@
 #include <errno.h>
 #include <stdbool.h>
 
-#include "Packet.h"
-#include "Text_Processing.h"
-#include "Checksum_Processing.h"
-#include "ack.h"
-
-
+#include "\Users\phili\git\uni\RNKS_Beleg\header\ack.h"
+#include "\Users\phili\git\uni\RNKS_Beleg\header\Packet.h"
+#include "\Users\phili\git\uni\RNKS_Beleg\header\Checksum_Processing.h"
+#include "\Users\phili\git\uni\RNKS_Beleg\header\Text_Processing.h"
 
 #pragma warning(disable : 4996)
 #pragma warning(disable:5000)
@@ -50,24 +48,24 @@ SOCKET create_new_socket() {
 	}
 }
 
-void set_addr_and_port(SOCKET *s, int port, SOCKADDR_IN6 *serverAddr) {
+void set_addr_and_port(int port, char *ipv6, SOCKADDR_IN6 *serverAddr) {
 
 	memset(serverAddr, 0, sizeof(SOCKADDR_IN6));
 	serverAddr->sin6_family = AF_INET6;
 	serverAddr->sin6_port = htons(port); //TODO port as arg to add
-	inet_pton(AF_INET6, "fe80::e9e0:ca4b:d325:19cd", &(serverAddr->sin6_addr));
+	inet_pton(AF_INET6, ipv6, &(serverAddr->sin6_addr));
 
 	return 0;
 }
 
-bool set_io_mode(SOCKET *s, u_long iMode) {
+int set_io_mode(SOCKET *s, u_long iMode) {
 	// sets IO mode of socket to non-blocking
 	int rc = ioctlsocket(*s, FIONBIO, &iMode);
 	if (rc == SOCKET_ERROR) {
 		printf("setting io mode failed with error: %u\n", WSAGetLastError());
 	}
 	else {
-		return true;
+		return 1;
 	}
 }
 
@@ -80,13 +78,13 @@ FILE* open_text_file(char *path) {
 	return fp;
 }
 
-packet create_packet(char *buf, long seqNum) {
+packet create_packet(char *buf, long seqNo) {
 	packet pack;
 	memset(&pack, 0, sizeof(packet));
 
 	strncpy(pack.txtCol, buf, sizeof(pack.txtCol));
 	pack.checkSum = calcChecksum(*(unsigned short *)&pack, sizeof(pack));
-	pack.seqNum = seqNum;
+	pack.seqNo = seqNo;
 	return pack;
 }
 
@@ -97,7 +95,7 @@ void send_packet_to(packet pack, SOCKET *s, SOCKADDR_IN6 *serverAddr) {
 		WSACleanup();
 		return 1;
 	}
-	printf("sent %d bytes!\n", rc);
+	printf("sent %d bytes with SeqNo: %lu\n", rc, pack.seqNo);
 }
 
 int receive_ack(SOCKET *sock) {
@@ -110,68 +108,90 @@ int receive_ack(SOCKET *sock) {
 		WSACleanup();
 	}
 	else {
-		printf("received SeqNum of acknowledgement: %lu\n", recAck.seqNum);
+		printf("received ack with SeqNo: %lu\n", recAck.seqNo);
 	}
-	return recAck.seqNum;
+	return recAck.seqNo;
 }
 
-int check_for_timeout(SOCKET *sock, int s) {
+void set_timeout(TIMEVAL *t, int s) {
+	t->tv_sec = s;
+	t->tv_usec = 0;
+}
+
+int saw_send(SOCKET *sock, FILE *filePointer, SOCKADDR_IN6 *serverAddr) {
+	
+	TIMEVAL timeout;
 	FD_SET fdSet;
-	//memset(&fdSet, 0, sizeof(FD_SET));
 	FD_ZERO(&fdSet);
 	FD_SET(*sock, &fdSet);
-
-	TIMEVAL timeoutVal;
-	timeoutVal.tv_sec = s;
-	timeoutVal.tv_usec = 0;
-
-	return select(0, &fdSet, NULL, NULL, &timeoutVal);
-}
-
-void saw_send(SOCKET *sock, FILE *filePointer, SOCKADDR_IN6 *serverAddr) {
-
 	char buf[512];
 
-	long seqNum = 0;
+	long seqNo = 0;
 	while (fgets(buf, BUFFER_LEN, filePointer) != NULL) {
-		packet pack = create_packet(buf, seqNum);
-		for (int timeoutsLeft = 3; timeoutsLeft > 0; timeoutsLeft--) {
-			send_packet_to(pack, sock, serverAddr);
-			int timer = check_for_timeout(sock, 5);
-			if (timer > 0 && (receive_ack(sock) == pack.seqNum)) {
-				break;
-			}
-			else if (timeoutsLeft == 1) {
-				printf("Coud not receive acknowledgement after 3 tries\n", timeoutsLeft);
-			}
-			else if (timer == 0) {
+		packet pack = create_packet(buf, seqNo);
+		send_packet_to(pack, sock, serverAddr);
+		set_timeout(&timeout, 5);
+
+		int timer;
+		int numberOfTimeouts = 0;
+		int successful = 0;
+		while (!successful || numberOfTimeouts < 3) {
+			timer = select(1, &fdSet, NULL, NULL, &timeout);
+			if (timer == 0) {
 				printf("TIMEOUT...send packet again.\n");
+				send_packet_to(pack, sock, serverAddr);
+				set_timeout(&timeout, 5);
+				numberOfTimeouts++;
+			}
+			else if (timer > 0){
+				int recAck = receive_ack(sock);
+				if (recAck == pack.seqNo) {
+					successful = 1;
+				}
+				else {
+					FD_ZERO(&fdSet);
+					FD_SET(*sock, &fdSet);
+				}
+			}
+			else if (numberOfTimeouts == 2) {
+				printf("Coud not receive acknowledgement after 3 tries\n");
+				return -1;
 			}
 			else if (timer == SOCKET_ERROR) {
 				printf("select function failed with error: %u\n", WSAGetLastError());
+				return -1;
 			}
 		}
-		seqNum++;
+		seqNo++;
 	}
 }
 
 
 int main(int argc, char *argv[]) {
 
+	if (argc != 4) {
+		printf("usage: %s [ipv6 port filepath]");
+		exit(-1);
+	}
+	char *ipv6 = argv[1];
+	int port = atoi(argv[2]);
+	char *filepath = argv[3];
+
 	initialze_winsock();
 
 	SOCKADDR_IN6 serverAddr;
 	SOCKET sock = create_new_socket();
-	FILE *filePointer = open_text_file("D:\\Dokumente\\input.txt");
+	FILE *filePointer = open_text_file(filepath);
 
-	set_addr_and_port(&sock, 50000, &serverAddr);
+	set_addr_and_port(port, ipv6, &serverAddr);
 	set_io_mode(&sock, (u_long)1);
 
-	saw_send(&sock, filePointer, &serverAddr);
+	if (saw_send(&sock, filePointer, &serverAddr) == -1) {
+		printf("Lost Connection to Receiver\n");
+	}
 
 	getch();
 	WSACleanup();
 
 	return 0;
 }
-

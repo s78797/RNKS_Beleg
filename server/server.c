@@ -9,6 +9,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <WS2tcpip.h>
+#include <stdbool.h>
 
 #include "\Users\phili\git\uni\RNKS_Beleg\header\ack.h"
 #include "\Users\phili\git\uni\RNKS_Beleg\header\Packet.h"
@@ -68,7 +69,7 @@ int bind_socket_to_port(SOCKET *s, int port) {
 
 }
 
-int saw_receive(SOCKET *sock) {
+int saw_receive(SOCKET *sock, int sendNoAckForOneTime) {
 	SOCKADDR_IN6 clientAddr;
 	packet recPacket;
 	memset(&clientAddr, 0, sizeof(clientAddr));
@@ -86,15 +87,23 @@ int saw_receive(SOCKET *sock) {
 			WSACleanup();
 			return 1;
 		}
-		print_status(&recPacket, expectedSeqNr);
-		printf("received address: %s", inet_ntop(AF_INET6, (SOCKADDR*)&clientAddr.sin6_addr, receivedAddr, INET6_ADDRSTRLEN));
-
 		long receivedChecksum = recPacket.checkSum;
 		recPacket.checkSum = 0;
 		long expectedChecksum = calcChecksum(*(unsigned short*)&recPacket, sizeof(recPacket));
-		if ((expectedSeqNr == recPacket.seqNum) && (receivedChecksum == expectedChecksum)) {
+		bool correctChecksum = receivedChecksum == expectedChecksum;
+		if ((expectedSeqNr - 1 == recPacket.seqNo) && correctChecksum) {
+			send_ackt(sock, &clientAddr, expectedSeqNr - 1);
+		}
+		else if ((expectedSeqNr == recPacket.seqNo) && correctChecksum) {
+			print_status(&recPacket, expectedSeqNr);
+			printf("received address: %s\n", inet_ntop(AF_INET6, (SOCKADDR*)&clientAddr.sin6_addr, receivedAddr, INET6_ADDRSTRLEN));
 			// write txtCol to file
-			send_ackt(sock, &clientAddr, expectedSeqNr);
+			if (sendNoAckForOneTime) {
+				sendNoAckForOneTime = 0;
+			}
+			else {
+				send_ackt(sock, &clientAddr, expectedSeqNr);
+			}
 			expectedSeqNr++;
 		}
 	}
@@ -103,18 +112,18 @@ int saw_receive(SOCKET *sock) {
 int print_status(packet *received, int expectedSeqNr) {
 	printf("\n\n----RECEIVED PACKET----\n");
 	printf("Text: %s", received->txtCol);
-	printf("SeqNr: %ld \n", received->seqNum);
+	printf("SeqNo: %ld \n", received->seqNo);
 	printf("checksum %ld\n", received->checkSum);
-	printf("expected SeqNr: %lu\nreceived SeqNr: %lu\n", expectedSeqNr, received->seqNum);
+	printf("expected SeqNo: %lu\nreceived SeqNo: %lu\n", expectedSeqNr, received->seqNo);
 	printf("---------------------------\n");
 	return 0;
 }
 
-int send_ackt(SOCKET *sock, SOCKADDR_IN6 *clientAddr, int seqNum) {
+int send_ackt(SOCKET *sock, SOCKADDR_IN6 *clientAddr, int seqNo) {
 	ack ackt;
 	memset(&ackt, 0, sizeof(ackt));
-	ackt.seqNum = seqNum;
-	printf("SeqNr of acknowledgment: %ld\n", ackt.seqNum);
+	ackt.seqNo = seqNo;
+	printf("SeqNr of acknowledgment: %ld\n", ackt.seqNo);
 	int sendCode = sendto(*sock, (ack*)&ackt, sizeof(ackt), 0, (SOCKADDR*)clientAddr, sizeof(SOCKADDR_IN6));
 	if (sendCode == SOCKET_ERROR) {
 		printf("sending acknowledgement failed with error: %d\n", WSAGetLastError());
@@ -126,11 +135,18 @@ int send_ackt(SOCKET *sock, SOCKADDR_IN6 *clientAddr, int seqNum) {
 
 
 int main(int argc, char* argv[]) {
+
+	if (argc != 2) {
+		printf("usage: %s [ipv6 port filepath]", argv[0]);
+		//exit(-1);
+	}
+	int port = atoi(argv[1]);
+
 	initialze_winsock();
 	SOCKET sock = create_new_socket();
-	bind_socket_to_port(&sock, 50000);
+	bind_socket_to_port(&sock, port);
 
-	saw_receive(&sock);
+	saw_receive(&sock, 0);
 
 	closesocket(sock);
 

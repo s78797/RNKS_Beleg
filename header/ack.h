@@ -1,6 +1,4 @@
 #pragma once
-
-
 typedef struct Acknowledement {
-	long seqNum;
+	long seqNo;
 }ack;
