@@ -11,11 +11,11 @@
 #include <WS2tcpip.h>
 #include <math.h>
 
-#include "\Users\phili\git\uni\RNKS_Beleg\header\sock_init.h"
-#include "\Users\phili\git\uni\RNKS_Beleg\header\ack.h"
-#include "\Users\phili\git\uni\RNKS_Beleg\header\Packet.h"
-#include "\Users\phili\git\uni\RNKS_Beleg\header\Checksum_Processing.h"
-#include "\Users\phili\git\uni\RNKS_Beleg\header\Text_Processing.h"
+#include "sock_init.h"
+#include "ack.h"
+#include "Packet.h"
+#include "Checksum_Processing.h"
+#include "Text_Processing.h"
 
 #pragma warning(disable : 4996)
 #pragma warning(disable:5000)
@@ -111,24 +111,30 @@ int saw_receive(SOCKET *sock, char *filePath, int failmode) {
 				failmode = 0;
 			}
 			else if (failmode == 2) {
-				send_ackt(sock, &clientAddr, -99999);
+				send_ackt(sock, &clientAddr, -99999,0);
 				failmode = 0;
 			}
 			else if (failmode == 3) {
-				send_ackt(sock, &clientAddr, -99999);
+				send_ackt(sock, &clientAddr, -99999,0);
 				Sleep(1000);
-				send_ackt(sock, &clientAddr, recPacket.seqNo);
+				send_ackt(sock, &clientAddr, recPacket.seqNo,0);
 				failmode = 0;
 			}
 			else if (failmode == 4) {
 				Sleep(6000);
-				send_ackt(sock, &clientAddr, expectedSeqNr);
+				send_ackt(sock, &clientAddr, expectedSeqNr,0);
 				failmode = 0;
 			}
+			else if (failmode == 6){
+				send_ackt(sock, &clientAddr, expectedSeqNr,1);
+				failmode = 0;
+
+			}
 			else {
-				send_ackt(sock, &clientAddr, expectedSeqNr);
+				send_ackt(sock, &clientAddr, expectedSeqNr,0);
 			}
 			expectedSeqNr++;
+
 		}
 	}
 }
@@ -148,10 +154,17 @@ int print_status(packet *received, int expectedSeqNr) {
 /*
 this function sends Ack to given @param{socket} and @param{addr} with given @param{seqNo}
 */
-int send_ackt(SOCKET *sock, SOCKADDR_IN6 *clientAddr, int seqNo) {
+int send_ackt(SOCKET *sock, SOCKADDR_IN6 *clientAddr, int seqNo, int rightChecksum) {
+
 	ack ackt;
 	memset(&ackt, 0, sizeof(ackt));
 	ackt.seqNo = seqNo;
+	ackt.checkSum = calcChecksum(*(unsigned short*)&ackt, sizeof(ackt));
+	if (rightChecksum==1){
+		printf("original checksum %ld\n", ackt.checkSum);
+		ackt.checkSum++;
+	}
+
 	int sendCode = sendto(*sock, (ack*)&ackt, sizeof(ackt), 0, (SOCKADDR*)clientAddr, sizeof(SOCKADDR_IN6));
 	if (sendCode == SOCKET_ERROR) {
 		printf("sending acknowledgement failed with error: %d\n", WSAGetLastError());
@@ -159,6 +172,7 @@ int send_ackt(SOCKET *sock, SOCKADDR_IN6 *clientAddr, int seqNo) {
 		return -1;
 	}
 	printf("sent ack with seqNr %ld\n", ackt.seqNo);
+	printf("sent ack with Checksum %ld\n", ackt.checkSum);
 	return 0;
 }
 
