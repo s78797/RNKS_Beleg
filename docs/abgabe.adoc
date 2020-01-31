@@ -17,9 +17,13 @@ Der Empfänger, wurde hier als _Server_ bezeichnet.
 
 == Vorgehen zum ausführen von Client und Server
 . Starten Server
-.. Parameter Beschreibung
+.. Parameter Bescchreiben
+.. Parameter werden als Befehlszeilen Argumente übergeben
+.. Server bekommt den Port, eine Output File und eine Error Mode Flag übergeben
 . Starten Client
 .. Parameter Beschreibung
+.. Parameter werden als Befehlszeilen Argumente übergeben
+.. Client bekommt den Port, eine Input File, die IPv6 Adresse des Empfängers und eine Error Mode Flag übergeben
 
 [#quellen]
 = Quellen
