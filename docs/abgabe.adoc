@@ -17,9 +17,21 @@ Der Empfänger, wurde hier als _Server_ bezeichnet.
 
 == Vorgehen zum ausführen von Client und Server
 . Starten Server
-.. Parameter Beschreibung
+.. 3 Parameter
+... port
+... filepath
+... errorcode
+.... 0 - no fail
+.... 1 - no ack was sent / ack got lost
+.... 2 - wrong ack was sent
+.... 3 - wrong ack was sent, but correct followed
+.... 4 - send delayed ack after 6 seconds
+.... 5 - simulate bit errors in packet data
 . Starten Client
-.. Parameter Beschreibung
+.. 3 Parameter
+... ipv6 adresse
+... port
+... filepath
 
 [#quellen]
 = Quellen
