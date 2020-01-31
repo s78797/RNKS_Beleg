@@ -1,11 +1,12 @@
-= Beleg Rechnernetze und Kommunikation
-Philipp Barth; Alexander Schoch; Justin Schirdewahn; Florian Freier
-30.01.2020 WS19/20 HTW Dresden Modul RNKS - Prof. Dr.-Ing. Kühn
+= Beleg Rechnernetze und Kommunikation - Implementierung von SAW auf UDP in C
 :toc: 
 :toc-title: Inhaltsverzeichnis
 :sectnums:
+
 ```
-Implementierung von SAW auf UDP in C
+30.01.2020 WS19/20 HTW Dresden Modul RNKS - Prof. Dr.-Ing. Kühn
+
+Philipp Barth; Alexander Schoch; Justin Schirdewahn; Florian Freier
 ```
 
 = Dokumentation
@@ -27,6 +28,7 @@ Der Empfänger, wurde hier als _Server_ bezeichnet.
 .... 3 - wrong ack was sent, but correct followed
 .... 4 - send delayed ack after 6 seconds
 .... 5 - simulate bit errors in packet data
+.... 6 - checksum failure on server-client acknowledgement
 . Starten Client
 .. 3 Parameter
 ... ipv6 adresse
