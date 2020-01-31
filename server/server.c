@@ -65,6 +65,7 @@ failmode: 2 - wrong ack was sent
 failmode: 3 - wrong ack was sent, but correct followed
 failmode: 4 - send delayed ack after 6 seconds
 failmode: 5 - simulate bit errors in packet data
+failmode: 6 - manipulate checksum of ack
 */
 int saw_receive(SOCKET *sock, char *filePath, int failmode) {
 	SOCKADDR_IN6 clientAddr;
